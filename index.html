@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Patient Map</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    body, html { margin: 0; padding: 0; height: 100%; font-family: Arial, sans-serif; }
+    #map { height: 100vh; width: 100%; }
+    .counter {
+      background: white;
+      padding: 8px 12px;
+      border-radius: 6px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+      font-size: 14px;
+    }
+    .popup-title {
+      margin: 0 0 6px;
+      color: #4A5FD5;
+      font-size: 15px;
+    }
+    .popup-addr {
+      margin: 0;
+      color: #555;
+      font-size: 13px;
+    }
+    .empty {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      color: #999;
+      font-size: 18px;
+    }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    let patients = [];
+    
+    try {
+      const dataParam = params.get('data');
+      if (dataParam) {
+        patients = JSON.parse(atob(decodeURIComponent(dataParam)));
+      }
+    } catch (e) {
+      console.error('Failed to parse patient data:', e);
+    }
+
+    if (patients.length === 0) {
+      document.getElementById('map').outerHTML = 
+        '<div class="empty">🗺️ No patient locations available</div>';
+    } else {
+      const map = L.map('map').setView([51, 10], 5);
+      
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors',
+        maxZoom: 19
+      }).addTo(map);
+
+      const bounds = [];
+      patients.forEach(p => {
+        L.marker([p.lat, p.lng])
+          .addTo(map)
+          .bindPopup(
+            '<h3 class="popup-title">' + escapeHtml(p.name) + '</h3>' +
+            '<p class="popup-addr">📍 ' + escapeHtml(p.addr) + '</p>'
+          );
+        bounds.push([p.lat, p.lng]);
+      });
+
+      if (bounds.length > 0) {
+        map.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
+      }
+
+      const info = L.control({ position: 'topright' });
+      info.onAdd = function() {
+        const d = L.DomUtil.create('div', 'counter');
+        d.innerHTML = '👥 <b>' + patients.length + '</b> Patient' + 
+                      (patients.length !== 1 ? 's' : '');
+        return d;
+      };
+      info.addTo(map);
+    }
+
+    function escapeHtml(str) {
+      const div = document.createElement('div');
+      div.textContent = str || '';
+      return div.innerHTML;
+    }
+  </script>
+</body>
+</html>
